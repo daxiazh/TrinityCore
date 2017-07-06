@@ -354,6 +354,8 @@ Unit::Unit(bool isWorldObject) :
     for (uint8 i = 0; i < MAX_MOVE_TYPE; ++i)
         m_speed_rate[i] = 1.0f;
 
+	m_attackTimer_rate = 1.0f;
+
     m_charmInfo = nullptr;
 
     _redirectThreadInfo = RedirectThreatInfo();

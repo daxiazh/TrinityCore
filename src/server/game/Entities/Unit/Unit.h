@@ -1090,7 +1090,12 @@ class TC_GAME_API Unit : public WorldObject
         int32 ModifyPower(Powers power, int32 val);
 
         uint32 GetAttackTime(WeaponAttackType att) const;
-        void SetAttackTime(WeaponAttackType att, uint32 val) { SetFloatValue(UNIT_FIELD_BASEATTACKTIME+att, val*m_modAttackSpeedPct[att]); }
+        void SetAttackTime(WeaponAttackType att, uint32 val) {
+			float newVal = val*m_modAttackSpeedPct[att];
+			newVal *= m_attackTimer_rate;	// 乘上对攻击时间的缩放值.
+			SetFloatValue(UNIT_FIELD_BASEATTACKTIME+att, newVal); 
+		}
+
         void ApplyAttackTimePercentMod(WeaponAttackType att, float val, bool apply);
         void ApplyCastTimePercentMod(float val, bool apply);
 
@@ -1762,6 +1767,14 @@ class TC_GAME_API Unit : public WorldObject
         void SetSpeed(UnitMoveType mtype, float newValue);
         void SetSpeedRate(UnitMoveType mtype, float rate);
 
+		// 功能:	设置攻击时间的缩放值,方便调试.
+		void SetAttackTimerRate(float rate)
+		{
+			rate = rate < 0.f ? 0.f : rate;
+			rate = rate > 100.f ? 100.f : rate;
+			m_attackTimer_rate = rate;
+		}
+
         float ApplyEffectModifiers(SpellInfo const* spellProto, uint8 effect_index, float value) const;
         int32 CalculateSpellDamage(Unit const* target, SpellInfo const* spellProto, uint8 effect_index, int32 const* basePoints = nullptr) const;
         int32 CalcSpellDuration(SpellInfo const* spellProto);
@@ -1970,6 +1983,8 @@ class TC_GAME_API Unit : public WorldObject
         VisibleAuraMap m_visibleAuras;
 
         float m_speed_rate[MAX_MOVE_TYPE];
+
+		float m_attackTimer_rate;					// 攻击时间的缩放比例,方便调试用.
 
         CharmInfo* m_charmInfo;
         SharedVisionList m_sharedVision;

@@ -773,6 +773,7 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_NPC_SHOWLOOT                           = 865,
 
     // custom permissions 1000+
+	RBAC_PERM_COMMAND_MODIFY_ATTACK_TIMER					 = 1001,
     RBAC_PERM_MAX
 };
 

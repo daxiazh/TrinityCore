@@ -73,6 +73,7 @@ public:
             { "standstate",   rbac::RBAC_PERM_COMMAND_MODIFY_STANDSTATE,   false, &HandleModifyStandStateCommand,    "" },
             { "talentpoints", rbac::RBAC_PERM_COMMAND_MODIFY_TALENTPOINTS, false, &HandleModifyTalentCommand,        "" },
             { "xp",           rbac::RBAC_PERM_COMMAND_MODIFY_XP,           false, &HandleModifyXPCommand,            "" },
+			{ "attacktimer",  rbac::RBAC_PERM_COMMAND_MODIFY_ATTACK_TIMER, false, &HandleModifyAttackTimerCommand,   "" },
         };
         static std::vector<ChatCommand> commandTable =
         {
@@ -1197,6 +1198,34 @@ public:
         target->GiveXP(xp, nullptr);
         return true;
     }
+
+	// mod attack time command
+	static bool HandleModifyAttackTimerCommand(ChatHandler *handler, char const* args)
+	{
+		if (!*args)
+			return false;
+
+		float attackTimerRate = (float)atof((char*)args);
+		if (attackTimerRate <= 0.f || attackTimerRate > 100.f)
+		{
+			handler->SendSysMessage(LANG_BAD_VALUE);
+			handler->SetSentErrorMessage(true);
+			return false;
+		}
+
+		Unit* target = handler->getSelectedUnit();
+		if (!target)
+			target = handler->GetSession()->GetPlayer();
+
+		// check online security
+		else if (target->GetTypeId() == TYPEID_PLAYER && handler->HasLowerSecurity(target->ToPlayer(), ObjectGuid::Empty))
+			return false;
+
+		// we can run the command
+		target->SetAttackTimerRate(attackTimerRate);
+		return true;
+
+	}
 };
 
 void AddSC_modify_commandscript()
