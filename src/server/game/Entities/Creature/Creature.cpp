@@ -38,6 +38,7 @@
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
+#include "PhasingHandler.h"
 #include "Player.h"
 #include "PoolMgr.h"
 #include "QuestDef.h"
@@ -861,12 +862,11 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 entry, float
     ASSERT(map);
     SetMap(map);
 
-    if (data && data->phaseId)
-        SetInPhase(data->phaseId, false, true);
-
-    if (data && data->phaseGroup)
-        for (auto ph : sDB2Manager.GetPhasesForGroup(data->phaseGroup))
-            SetInPhase(ph, false, true);
+    if (data)
+    {
+        PhasingHandler::InitDbPhaseShift(GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
+        PhasingHandler::InitDbVisibleMapId(GetPhaseShift(), data->terrainSwapMap);
+    }
 
     CreatureTemplate const* cinfo = sObjectMgr->GetCreatureTemplate(entry);
     if (!cinfo)
@@ -1226,20 +1226,22 @@ void Creature::SelectLevel()
 {
     CreatureTemplate const* cInfo = GetCreatureTemplate();
 
-    if (!HasScalableLevels())
+    // level
+    uint8 minlevel = std::min(cInfo->maxlevel, cInfo->minlevel);
+    uint8 maxlevel = std::max(cInfo->maxlevel, cInfo->minlevel);
+    uint8 level = minlevel == maxlevel ? minlevel : urand(minlevel, maxlevel);
+    SetLevel(level);
+
+    if (HasScalableLevels())
     {
-        // level
-        uint8 minlevel = std::min(cInfo->maxlevel, cInfo->minlevel);
-        uint8 maxlevel = std::max(cInfo->maxlevel, cInfo->minlevel);
-        uint8 level = minlevel == maxlevel ? minlevel : urand(minlevel, maxlevel);
-        SetLevel(level);
-    }
-    else
-    {
-        SetLevel(cInfo->levelScaling->MaxLevel);
         SetUInt32Value(UNIT_FIELD_SCALING_LEVEL_MIN, cInfo->levelScaling->MinLevel);
         SetUInt32Value(UNIT_FIELD_SCALING_LEVEL_MAX, cInfo->levelScaling->MaxLevel);
-        SetUInt32Value(UNIT_FIELD_SCALING_LEVEL_DELTA, cInfo->levelScaling->DeltaLevel);
+
+        int8 mindelta = std::min(cInfo->levelScaling->DeltaLevelMax, cInfo->levelScaling->DeltaLevelMin);
+        int8 maxdelta = std::max(cInfo->levelScaling->DeltaLevelMax, cInfo->levelScaling->DeltaLevelMin);
+        int8 delta = mindelta == maxdelta ? mindelta : irand(mindelta, maxdelta);
+
+        SetInt32Value(UNIT_FIELD_SCALING_LEVEL_DELTA, delta);
     }
 
     UpdateLevelDependantStats();
@@ -1471,7 +1473,7 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
         m_deathState = DEAD;
         if (CanFly())
         {
-            float tz = map->GetHeight(GetPhases(), data->posX, data->posY, data->posZ, true, MAX_FALL_DISTANCE);
+            float tz = map->GetHeight(GetPhaseShift(), data->posX, data->posY, data->posZ, true, MAX_FALL_DISTANCE);
             if (data->posZ - tz > 0.1f && Trinity::IsValidMapCoord(tz))
                 Relocate(data->posX, data->posY, tz);
         }
@@ -2566,7 +2568,7 @@ uint8 Creature::GetLevelForTarget(WorldObject const* target) const
         // between UNIT_FIELD_SCALING_LEVEL_MIN and UNIT_FIELD_SCALING_LEVEL_MAX
         if (HasScalableLevels())
         {
-            uint8 targetLevelWithDelta = unitTarget->getLevel() + GetCreatureTemplate()->levelScaling->DeltaLevel;
+            uint8 targetLevelWithDelta = unitTarget->getLevel() + GetInt32Value(UNIT_FIELD_SCALING_LEVEL_DELTA);
 
             if (target->IsPlayer())
                 targetLevelWithDelta += target->GetUInt32Value(PLAYER_FIELD_SCALING_PLAYER_LEVEL_DELTA);
@@ -2809,7 +2811,7 @@ void Creature::UpdateMovementFlags()
         return;
 
     // Set the movement flags if the creature is in that mode. (Only fly if actually in air, only swim if in water, etc)
-    float ground = GetMap()->GetHeight(GetPhases(), GetPositionX(), GetPositionY(), GetPositionZMinusOffset());
+    float ground = GetMap()->GetHeight(GetPhaseShift(), GetPositionX(), GetPositionY(), GetPositionZMinusOffset());
 
     bool isInAir = (G3D::fuzzyGt(GetPositionZMinusOffset(), ground + 0.05f) || G3D::fuzzyLt(GetPositionZMinusOffset(), ground - 0.05f)); // Can be underground too, prevent the falling
 

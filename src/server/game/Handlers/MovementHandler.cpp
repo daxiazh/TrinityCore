@@ -175,7 +175,7 @@ void WorldSession::HandleMoveWorldportAck()
     if (mInstance)
     {
         // check if this instance has a reset time and send it to player if so
-        Difficulty diff = GetPlayer()->GetDifficultyID(mEntry);
+        Difficulty diff = newMap->GetDifficultyID();
         if (MapDifficultyEntry const* mapDiff = sDB2Manager.GetMapDifficultyData(mEntry->ID, diff))
         {
             if (mapDiff->GetRaidDuration())
@@ -374,7 +374,7 @@ void WorldSession::HandleMovementOpcode(OpcodeClient opcode, MovementInfo& movem
     if (plrMover && ((movementInfo.flags & MOVEMENTFLAG_SWIMMING) != 0) != plrMover->IsInWater())
     {
         // now client not include swimming flag in case jumping under water
-        plrMover->SetInWater(!plrMover->IsInWater() || plrMover->GetBaseMap()->IsUnderWater(movementInfo.pos.GetPositionX(), movementInfo.pos.GetPositionY(), movementInfo.pos.GetPositionZ()));
+        plrMover->SetInWater(!plrMover->IsInWater() || plrMover->GetMap()->IsUnderWater(plrMover->GetPhaseShift(), movementInfo.pos.GetPositionX(), movementInfo.pos.GetPositionY(), movementInfo.pos.GetPositionZ()));
     }
 
     uint32 mstime = getMSTime();
